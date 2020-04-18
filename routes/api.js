@@ -25,15 +25,38 @@ module.exports = function (app) {
   } 
 
   const addCount = (response, dataToSend, symbols) => {
+    let likes = [];
     StockLike.aggregate()
     .match({symbol:{$in:symbols}})
     .group({_id: "$symbol",likeAgent: {$sum: 1}})
     .exec((err,results)=>{
-      //console.log(results,dataToSend)
-      results.forEach( x => {
-        (dataToSend['stockData'].find(e => e.stock === x._id)).likes = x.likeAgent
+      //console.log(results,"==============")
+      if(results.length===0){
+
+        for(var emptylikes = 0 ; emptylikes < symbols.length; emptylikes++){
+          likes.push({likeAgent:0})
+        }
+      }
+      else{
+        likes = results
+      }
+      //console.log(likes,"------------------------------>")
+      //console.log("dataToSend: ",dataToSend,"\nLikes:",likes)
+
+      dataToSend.stockData.forEach( x => {
+        let foundStock = (likes.find(e => e._id === x.stock));
+        if(foundStock===undefined){
+          x.likes = 0;
+        }
+        else {
+          x.likes =foundStock.likeAgent
+        }
+        //console.log(x,foundStock, likes,"=====================")//.likes = x.likeAgent;
       })
 
+
+      //console.log(dataToSend,"here")
+      
       if (dataToSend.stockData.length===1){
         response.json({'stockData':dataToSend.stockData[0]})
       }
@@ -42,6 +65,7 @@ module.exports = function (app) {
         let l1 = dataToSend.stockData[1].likes;
         dataToSend.stockData[1].likes = l0 - dataToSend.stockData[1].likes;
         dataToSend.stockData[0].likes = l1 - dataToSend.stockData[0].likes; 
+
         response.json(dataToSend)
       }      
     })
@@ -65,7 +89,7 @@ module.exports = function (app) {
         itemsToStore.push({symbol:stockTicket,likeAgent:ip})
       });
       StockLike.insertMany(itemsToStore,{ordered:false},(err,docs)=>{
-        console.log(docs,itemsToStore)
+        //console.log(docs,itemsToStore)
         addCount(res,data,symbolsToStore)
       })
     }
